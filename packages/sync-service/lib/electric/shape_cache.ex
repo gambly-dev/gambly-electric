@@ -114,9 +114,8 @@ defmodule Electric.ShapeCache do
     ShapeCleaner.remove_shape(stack_id, shape_handle)
   end
 
-  @spec await_snapshot_start(shape_handle(), stack_id(), non_neg_integer()) ::
-          :started | {:error, term()}
-  def await_snapshot_start(shape_handle, stack_id, attempts_remaining \\ 10)
+  @spec await_snapshot_start(shape_handle(), stack_id()) :: :started | {:error, term()}
+  def await_snapshot_start(shape_handle, stack_id)
       when is_shape_handle(shape_handle) and is_stack_id(stack_id) do
     ShapeStatus.update_last_read_time_to_now(stack_id, shape_handle)
 
@@ -139,27 +138,28 @@ defmodule Electric.ShapeCache do
             {:error, %RuntimeError{message: "Timed out while waiting for snapshot to start"}}
 
           :exit, {:noproc, _} ->
-            if attempts_remaining > 0 do
-              # The fact that we got the shape handle means we know the shape exists, and the process should
-              # exist too. We can get here if registry didn't propagate registration across partitions yet, so
-              # we'll just retry after waiting for a short time to avoid busy waiting.
-              Process.sleep(50)
+            # This branch can only be reached when the consumer process dies without requesting
+            # shape cleanup. We've seen this happen in prod for shapes with subqueries: in that
+            # case there's one or more materializer processes. Occasionally a materializer
+            # process dies with reason :shutdown which causes the consumer process to stop with
+            # the same reason. Consumer processes aren't restarted automatically, so as a
+            # result, the shape handle remains in the ShapeStatus table but there's no longer a
+            # consumer process for it.
+            #
+            # The root cause for materializer process shutdown before snapshot creation even starts
+            # is yet to be determined.
+            #
+            # For now we just invalidate the shape with subqueries and expect that the client
+            # will re-request it.
+            {:ok, shape} = fetch_shape_by_handle(shape_handle, stack_id)
 
-              await_snapshot_start(shape_handle, stack_id, attempts_remaining - 1)
-            else
-              # If we've been in this situation 10 times already, the consumer process is
-              # likely not appearing and the shape entry in ShapeStatus is stale.
-              # Purge the shape and let the client initiate new shape creation which hopefully
-              # won't hit the same problem with consumer dying before the initial snapshot
-              # creation starts.
-              clean_shape(shape_handle, stack_id)
+            ShapeCleaner.remove_shapes(stack_id, [shape_handle | shape.shape_dependencies_handles])
 
-              Logger.error(
-                "Exhausted retry attempts while waiting for a shape consumer to start initial snapshot creation for #{shape_handle}"
-              )
+            Logger.error(
+              "No consumer process when starting initial snapshot creation for #{shape_handle}"
+            )
 
-              {:error, Electric.Shapes.Api.Error.must_refetch()}
-            end
+            {:error, Electric.Shapes.Api.Error.must_refetch()}
         end
     end
   rescue

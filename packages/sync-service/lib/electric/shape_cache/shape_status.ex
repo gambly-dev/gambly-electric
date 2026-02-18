@@ -155,7 +155,7 @@ defmodule Electric.ShapeCache.ShapeStatus do
   connection, which is guaranteed to see all writes (SQLite connections can
   always see their own writes).
 
-  This guarantees that will will return consistent restults at the cost of slower
+  This guarantees that we will return consistent restults at the cost of slower
   lookups as we're contending with access to the single write connection.
   """
   @spec fetch_handle_by_shape_critical(stack_id(), Shape.t()) :: {:ok, shape_handle()} | :error

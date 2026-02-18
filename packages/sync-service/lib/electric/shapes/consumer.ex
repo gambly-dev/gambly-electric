@@ -369,7 +369,7 @@ defmodule Electric.Shapes.Consumer do
     handle_materializer_down(reason, state)
   end
 
-  # We're trapping exists so that `terminate` is called to clean up the writer,
+  # We're trapping exits so that `terminate` is called to clean up the writer,
   # otherwise we respect the OTP exit protocol. Since nothing is linked to the consumer
   # we shouldn't see this...
   def handle_info({:EXIT, _pid, reason}, state) do
