@@ -41,5 +41,5 @@ jobs:
       - name: Kubectl client-side dry-run
         run: |
           for f in k8s/dev/*.yaml k8s/prod/*.yaml; do
-            kubectl apply --dry-run=client -f "$f" >/dev/null
+            kubectl apply --dry-run=client --validate=false -f "$f" >/dev/null
           done

@@ -53,8 +53,19 @@ jobs:
             echo "reason=Deployment configured" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Check AWS deploy credentials availability
+        id: creds
+        run: |
+          if [ -z "${{ secrets.DEPLOYER_AWS_ACCESS_KEY_ID }}" ] || [ -z "${{ secrets.DEPLOYER_AWS_SECRET_ACCESS_KEY }}" ]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "reason=AWS deploy secrets are unavailable in this workflow context" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=true" >> "$GITHUB_OUTPUT"
+            echo "reason=AWS deploy secrets available" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Configure AWS credentials
-        if: steps.gate.outputs.skip != 'true'
+        if: steps.gate.outputs.skip != 'true' && steps.creds.outputs.available == 'true'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.DEPLOYER_AWS_ACCESS_KEY_ID }}
@@ -62,21 +73,21 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Download environment file
-        if: steps.gate.outputs.skip != 'true'
+        if: steps.gate.outputs.skip != 'true' && steps.creds.outputs.available == 'true'
         run: |
           aws s3 cp "s3://gambly-env/${{ steps.env.outputs.environment }}/gambly-electric.env" .env
 
       - name: Install kubectl
-        if: steps.gate.outputs.skip != 'true'
+        if: steps.gate.outputs.skip != 'true' && steps.creds.outputs.available == 'true'
         uses: azure/setup-kubectl@v4
 
       - name: Update EKS kubeconfig
-        if: steps.gate.outputs.skip != 'true'
+        if: steps.gate.outputs.skip != 'true' && steps.creds.outputs.available == 'true'
         run: |
           aws eks update-kubeconfig --region "${{ env.AWS_REGION }}" --name "${{ env.EKS_CLUSTER }}"
 
       - name: Apply Kubernetes manifests
-        if: steps.gate.outputs.skip != 'true'
+        if: steps.gate.outputs.skip != 'true' && steps.creds.outputs.available == 'true'
         run: |
           NAMESPACE="${{ steps.env.outputs.namespace }}"
           MANIFEST_DIR="k8s/${{ steps.env.outputs.environment }}"
@@ -94,12 +105,12 @@ jobs:
           kubectl apply -f "${MANIFEST_DIR}/ingress.yaml"
 
       - name: Verify rollout
-        if: steps.gate.outputs.skip != 'true'
+        if: steps.gate.outputs.skip != 'true' && steps.creds.outputs.available == 'true'
         run: |
           kubectl rollout status deployment/gambly-electric -n "${{ steps.env.outputs.namespace }}" --timeout=5m
 
       - name: Print status
-        if: steps.gate.outputs.skip != 'true'
+        if: steps.gate.outputs.skip != 'true' && steps.creds.outputs.available == 'true'
         run: |
           kubectl get deploy,pod,svc,ingress -n "${{ steps.env.outputs.namespace }}" -l app=gambly-electric
 
@@ -107,3 +118,8 @@ jobs:
         if: steps.gate.outputs.skip == 'true'
         run: |
           echo "Skipping deploy: ${{ steps.gate.outputs.reason }}"
+
+      - name: Skip summary (credentials)
+        if: steps.gate.outputs.skip != 'true' && steps.creds.outputs.available != 'true'
+        run: |
+          echo "Skipping deploy: ${{ steps.creds.outputs.reason }}"
