@@ -21,8 +21,6 @@ export GAMBLY_ELECTRIC_SECRET='replace-with-strong-random-secret'
 
 ```bash
 ./scripts/deploy-gambly-electric-dev.sh
-# equivalent:
-# ./scripts/deploy-gambly-electric.sh dev
 ```
 
 ## Smoke test

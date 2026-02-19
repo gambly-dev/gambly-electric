@@ -42,7 +42,19 @@ jobs:
           echo "environment=${ENVIRONMENT}" >> "$GITHUB_OUTPUT"
           echo "namespace=gambly-${ENVIRONMENT}" >> "$GITHUB_OUTPUT"
 
+      - name: Check if deployment is configured
+        id: gate
+        run: |
+          if [ "${{ steps.env.outputs.environment }}" = "prod" ] && grep -q 'REPLACE_ME' "k8s/prod/pv.yaml"; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "reason=Prod EFS placeholders are still present in k8s/prod/pv.yaml" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "reason=Deployment configured" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Configure AWS credentials
+        if: steps.gate.outputs.skip != 'true'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.DEPLOYER_AWS_ACCESS_KEY_ID }}
@@ -50,25 +62,21 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Download environment file
+        if: steps.gate.outputs.skip != 'true'
         run: |
           aws s3 cp "s3://gambly-env/${{ steps.env.outputs.environment }}/gambly-electric.env" .env
 
-      - name: Validate prod EFS manifest
-        if: steps.env.outputs.environment == 'prod'
-        run: |
-          if grep -q 'REPLACE_ME' "k8s/prod/pv.yaml"; then
-            echo "k8s/prod/pv.yaml contains REPLACE_ME placeholders. Configure prod EFS IDs first." >&2
-            exit 1
-          fi
-
       - name: Install kubectl
+        if: steps.gate.outputs.skip != 'true'
         uses: azure/setup-kubectl@v4
 
       - name: Update EKS kubeconfig
+        if: steps.gate.outputs.skip != 'true'
         run: |
           aws eks update-kubeconfig --region "${{ env.AWS_REGION }}" --name "${{ env.EKS_CLUSTER }}"
 
       - name: Apply Kubernetes manifests
+        if: steps.gate.outputs.skip != 'true'
         run: |
           NAMESPACE="${{ steps.env.outputs.namespace }}"
           MANIFEST_DIR="k8s/${{ steps.env.outputs.environment }}"
@@ -86,9 +94,16 @@ jobs:
           kubectl apply -f "${MANIFEST_DIR}/ingress.yaml"
 
       - name: Verify rollout
+        if: steps.gate.outputs.skip != 'true'
         run: |
           kubectl rollout status deployment/gambly-electric -n "${{ steps.env.outputs.namespace }}" --timeout=5m
 
       - name: Print status
+        if: steps.gate.outputs.skip != 'true'
         run: |
           kubectl get deploy,pod,svc,ingress -n "${{ steps.env.outputs.namespace }}" -l app=gambly-electric
+
+      - name: Skip summary
+        if: steps.gate.outputs.skip == 'true'
+        run: |
+          echo "Skipping deploy: ${{ steps.gate.outputs.reason }}"

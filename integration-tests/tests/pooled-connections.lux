@@ -1,0 +1,70 @@
+[doc Verify Electric handles data replication with pooled connection]
+
+[include _macros.luxinc]
+
+[global pg_container_name=pooled-connections__pg]
+
+###
+
+## Start a new Postgres cluster with a PG bouncer pooler running alongside it
+[invoke setup_pg_with_pooler]
+
+## Add some data
+[invoke start_psql]
+[shell psql]
+  """!
+  CREATE TABLE items (
+    id UUID PRIMARY KEY,
+    val TEXT
+  );
+  """
+  ??CREATE TABLE
+
+  """!
+  INSERT INTO
+    items (id, val)
+  SELECT
+    gen_random_uuid(),
+    '#' || generate_series || ' initial val'
+  FROM
+    generate_series(1, 10);
+  """
+  ??INSERT 0 10
+
+## Start the sync service.
+[invoke setup_electric_with_pooler]
+
+[shell electric]
+  ??[info] Starting replication from postgres
+  
+# Initialize a shape and collect the offset
+[shell client]
+  [invoke shape_get_snapshot items]
+  ?electric-handle: ([\d-]+)
+  [local handle=$1]
+  ?electric-offset: ([\w\d_]+)
+  [local offset=$1]
+  ??"val":"#10 initial val"
+
+## Add some more data
+[shell psql]
+  """!
+  INSERT INTO
+    items (id, val)
+  SELECT
+    gen_random_uuid(),
+    '#' || generate_series || ' new val'
+  FROM
+    generate_series(1, 10);
+  """
+  ??INSERT 0 10
+
+# Client should be able to continue same shape
+[shell client]
+  [sleep 2]
+  [invoke shape_get items $handle $offset]
+  ??HTTP/1.1 200 OK
+  ??"val":"#10 new val"
+
+[cleanup]
+  [invoke teardown]

@@ -1,0 +1,19 @@
+defmodule Electric.Replication.PublicationManager do
+  @moduledoc """
+  Manages a PostgreSQL publication for a given Electric stack, tracking shapes
+  and ensuring that the publication configuration matches the required set of
+  relations that need to be published for the shapes to function correctly.
+
+  Includes periodic checks of the publication to ensure that it remains valid,
+  and expires any shapes that are no longer valid due to schema changes or
+  permission issues.
+  """
+
+  defdelegate start_link(opts), to: __MODULE__.Supervisor
+  defdelegate child_spec(opts), to: __MODULE__.Supervisor
+
+  defdelegate name(opts), to: __MODULE__.RelationTracker
+  defdelegate add_shape(stack_id, shape_handle, shape), to: __MODULE__.RelationTracker
+  defdelegate remove_shape(stack_id, shape_handle), to: __MODULE__.RelationTracker
+  defdelegate wait_for_restore(stack_id, opts \\ []), to: __MODULE__.RelationTracker
+end

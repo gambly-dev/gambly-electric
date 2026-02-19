@@ -1,0 +1,99 @@
+
+# Redirect HTTP to HTTPS
+
+http://electric-sql.com/* https://electric-sql.com/:splat 301!
+
+# Redirect next to main
+
+http://next.electric-sql.com/* https://electric-sql.com/:splat 301!
+https://next.electric-sql.com/* https://electric-sql.com/:splat 301!
+
+# Redirect legacy website paths to existing pages
+
+/about                          /about/community
+/about/enterprise               /about/community
+/docs/api/generator             /docs/intro
+/docs/integrations/deployment   /docs/guides/deployment
+/docs/integrations/deployment/* /docs/guides/deployment
+/docs/overview                  /docs/intro
+/docs/overview/examples         /demos
+/docs/overview/faqs             /docs/intro
+/docs/overview/technical-intro  /docs/intro
+/docs/overview/welcome          /docs/intro
+/docs/reference/anomalies       /docs/reference/literature
+/docs/reference/limitations     /docs/reference/roadmap
+/docs/usage/configure           /docs/quickstart
+/docs/usage/drivers             /docs/quickstart
+/docs/usage/frameworks          /docs/integrations/react
+/docs/usage/install             /docs/quickstart
+/docs/usage/quickstart          /docs/quickstart
+/docs/usage/reactivity          /docs/intro
+/docs/usage/replication         /docs/intro
+/demos                          https://github.com/electric-sql/electric/tree/main/examples
+/legal                          /legal/terms
+
+# Bumped the introducing post date and version
+
+/blog/2023/08/14/introducing-electricsql-v0.5           /blog/2023/09/20/introducing-electricsql-v0.6
+
+# Shortpaths for nice links
+
+/docs                                        /docs/intro
+/intro                                       /docs/intro
+/examples                                    /demos
+/docs/guides/troubleshooting/missing-headers /docs/guides/troubleshooting#missing-headers-mdash-why-is-the-client-complaining-about-missing-headers
+
+# More links from legacy site
+
+/blog/archive                   /blog
+/blog/page/*                    /blog
+/blog/tags                      /blog
+/blog/tags/*                    /blog
+/blog/tags/team                 /about/team
+/search                         /
+/about/partnerships             /about/community
+/docs/api                       /docs/api/http
+/docs/api/*                     /docs/api/http
+/docs/deployment                /docs/guides/deployment
+/docs/deployment/*              /docs/guides/deployment
+/docs/examples                  /demos
+/docs/examples/*                /demos
+/docs/integrations              /docs/integrations/react
+/docs/integrations/*            /docs/integrations/react
+/docs/intro/*                   /docs/intro
+/docs/recipes                   /docs/intro
+/docs/recipes/*                 /docs/intro
+/docs/reference                 /docs/intro
+/docs/reference/architecture    /docs/intro
+/docs/reference/consistency     /docs/intro
+/docs/reference/integrity       /docs/intro
+/docs/reference/local-first     /docs/intro
+/docs/reference/release_notes   /docs/intro
+/docs/reference/roadmap         /docs/intro
+/docs/usage                     /docs/quickstart
+/docs/usage/auth                /docs/guides/auth
+/docs/usage/auth/*              /docs/guides/auth
+/docs/usage/data-access         /docs/intro
+/docs/usage/data-access/*       /docs/intro
+/docs/usage/data-modelling      /docs/intro
+/docs/usage/data-modelling/*    /docs/intro
+/docs/usage/installation        /docs/quickstart
+/docs/usage/installation/*      /docs/quickstart
+
+# Renamed pages on new site
+/product/ddn                          /product/cloud
+/product/sync                         /product/electric
+
+# Site restructure (2026-01) - products and sync pages
+/product/electric                                   /products/postgres-sync
+/product/cloud                                      /cloud
+/product/pglite                                     /products/pglite
+/use-cases/*                                        /sync
+/docs/api/integrations/react                        /docs/integrations/react
+/docs/guides/writing-your-own-client                /docs/guides/client-development
+/use-cases/state-transfer                           /use-cases/data-sync
+/product/cloud/sign-up                              https://dashboard.electric-sql.cloud
+/product/cloud/onboarding                           /cloud/overview
+/product/cloud/usage                                /cloud/usage
+/docs/guides/llms                                   /docs/agents
+/blog/2025/07/29/local-first-sync-with-tanstack-db  /blog/2025/07/29/super-fast-apps-on-sync-with-tanstack-db

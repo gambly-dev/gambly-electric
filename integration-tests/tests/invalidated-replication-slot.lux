@@ -1,0 +1,47 @@
+[doc Verify handling of invalidated replication slot while Electric is running]
+
+[include _macros.luxinc]
+
+[global pg_container_name=replication-slot-invalidated-while-running__pg]
+
+[my invalidated_slot_error=
+  """
+  ** (Postgrex.Error) ERROR 55000 (object_not_in_prerequisite_state) can no longer access replication slot "electric_slot_integration"
+
+  This replication slot has been invalidated due to "wal_removed".
+  """]
+
+## Start a new Postgres cluster configured for easy replication slot invalidation.
+[invoke setup_pg_with_shell_name \
+  "pg" \
+  "-e POSTGRES_INITDB_ARGS=--wal-segsize=1" \
+  "-c max_slot_wal_keep_size=1MB -c max_wal_size=2MB" \
+  ""]
+
+## Start the sync service.
+[invoke setup_electric]
+
+[invoke check_health_status "active"]
+  
+
+## Seed the database with enough data to exceed max_wal_size and force a checkpoint that
+## will invalidate the replication slot.
+[invoke seed_pg]
+
+## Confirm slot invalidation in Postgres.
+[shell pg]
+  ?The slot's restart_lsn [\w]+/[\w]+ exceeds the limit by
+  ?terminating connection due to administrator command
+
+## Observe the fatal connection error.
+[shell electric]
+  # Reset the failure pattern because we'll be matching on an error.
+  -
+
+  ??$invalidated_slot_error
+  ??Couldn't start replication: slot has been invalidated
+  ??Purging all shapes.
+  ??Starting replication from postgres
+
+[cleanup]
+  [invoke teardown]

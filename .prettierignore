@@ -1,0 +1,38 @@
+node_modules
+.vscode
+dist
+build
+coverage
+.changeset
+.next
+.sst
+.nitro
+.output
+*.min.js
+*.min.css
+pnpm-lock.yaml
+sst-env.d.ts
+sst.config.ts
+
+# Ignore website markdown files to prevent underscore escaping issues
+website/**/*.md
+
+# Ignore internal Vitepress files
+website/.vitepress
+
+# Ignore website partials (documentation code snippets)
+website/src/partials/**
+
+# Ignore static files used by website
+website/public
+website/static
+
+# Ignore Elixir projects
+packages/electric-telemetry
+packages/elixir-client
+packages/sync-service
+
+# Elixir deps, tests and build artifacts
+_build
+deps
+integration-tests

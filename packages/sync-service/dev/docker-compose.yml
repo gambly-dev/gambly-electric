@@ -1,0 +1,67 @@
+version: '3.8'
+name: 'electric_dev'
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: electric
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - '54321:5432'
+    volumes:
+      - ./postgres.conf:/etc/postgresql.conf:ro
+      - ./init.sql:/docker-entrypoint-initdb.d/00_shared_init.sql:ro
+      - ./reset_wal.sh:/docker-entrypoint-initdb.d/initdb-reset_wal.sh:x
+    tmpfs:
+      - /var/lib/postgresql
+      - /tmp
+    command:
+      - -c
+      - config_file=/etc/postgresql.conf
+    healthcheck:
+      test: ["CMD", "pg_isready"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  postgres2:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: electric
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - '54322:5433'
+    volumes:
+      - ./postgres2.conf:/etc/postgresql.conf:ro
+      - ./init.sql:/docker-entrypoint-initdb.d/00_shared_init.sql:ro
+      - ./reset_wal.sh:/docker-entrypoint-initdb.d/initdb-reset_wal.sh:x
+    tmpfs:
+      - /var/lib/postgresql
+      - /tmp
+    command:
+      - -c
+      - config_file=/etc/postgresql.conf
+  pgbouncer:
+    image: bitnamilegacy/pgbouncer:latest
+    environment:
+      PGBOUNCER_AUTH_TYPE: trust
+      PGBOUNCER_DATABASE: '*'
+      PGBOUNCER_POOL_MODE: transaction
+      POSTGRESQL_HOST: postgres
+      POSTGRESQL_DATABASE: electric
+      POSTGRESQL_USERNAME: postgres
+      POSTGRESQL_PASSWORD: password
+    ports:
+      - '65432:6432'
+    depends_on:
+      - postgres
+  nginx:
+    image: nginx:latest
+    ports:
+      - '3002:3002'
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'

@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "incremental": false,
+    "baseUrl": "./",
+    "target": "es2017",
+    "lib": ["ESNext"],
+    "jsx": "preserve",
+    "noEmit": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true
+  }
+}
