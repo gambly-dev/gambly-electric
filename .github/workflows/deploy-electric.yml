@@ -1,0 +1,94 @@
+name: Deploy Electric
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment (dev or prod)'
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - prod
+
+env:
+  EKS_CLUSTER: gambly-eks-prod
+  AWS_REGION: us-east-2
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve environment
+        id: env
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            ENVIRONMENT="${{ inputs.environment }}"
+          elif [ "${{ github.ref_name }}" = "main" ]; then
+            ENVIRONMENT="prod"
+          else
+            ENVIRONMENT="dev"
+          fi
+
+          echo "environment=${ENVIRONMENT}" >> "$GITHUB_OUTPUT"
+          echo "namespace=gambly-${ENVIRONMENT}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.DEPLOYER_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.DEPLOYER_AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Download environment file
+        run: |
+          aws s3 cp "s3://gambly-env/${{ steps.env.outputs.environment }}/gambly-electric.env" .env
+
+      - name: Validate prod EFS manifest
+        if: steps.env.outputs.environment == 'prod'
+        run: |
+          if grep -q 'REPLACE_ME' "k8s/prod/pv.yaml"; then
+            echo "k8s/prod/pv.yaml contains REPLACE_ME placeholders. Configure prod EFS IDs first." >&2
+            exit 1
+          fi
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Update EKS kubeconfig
+        run: |
+          aws eks update-kubeconfig --region "${{ env.AWS_REGION }}" --name "${{ env.EKS_CLUSTER }}"
+
+      - name: Apply Kubernetes manifests
+        run: |
+          NAMESPACE="${{ steps.env.outputs.namespace }}"
+          MANIFEST_DIR="k8s/${{ steps.env.outputs.environment }}"
+
+          kubectl create secret generic gambly-electric-env \
+            --namespace "$NAMESPACE" \
+            --from-env-file=.env \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          kubectl apply -f "${MANIFEST_DIR}/csidriver-efs.yaml"
+          kubectl apply -f "${MANIFEST_DIR}/pv.yaml"
+          kubectl apply -f "${MANIFEST_DIR}/pvc.yaml"
+          kubectl apply -f "${MANIFEST_DIR}/deployment.yaml"
+          kubectl apply -f "${MANIFEST_DIR}/service.yaml"
+          kubectl apply -f "${MANIFEST_DIR}/ingress.yaml"
+
+      - name: Verify rollout
+        run: |
+          kubectl rollout status deployment/gambly-electric -n "${{ steps.env.outputs.namespace }}" --timeout=5m
+
+      - name: Print status
+        run: |
+          kubectl get deploy,pod,svc,ingress -n "${{ steps.env.outputs.namespace }}" -l app=gambly-electric

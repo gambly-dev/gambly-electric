@@ -1,0 +1,17 @@
+{
+  "Comment": "Create dev-electric.gambly.com alias for gambly-electric ingress",
+  "Changes": [
+    {
+      "Action": "CREATE",
+      "ResourceRecordSet": {
+        "Name": "dev-electric.gambly.com.",
+        "Type": "A",
+        "AliasTarget": {
+          "HostedZoneId": "ZLMOA37VPKANP",
+          "DNSName": "k8s-ingressn-ingressn-84cb72edaf-2238fe9c51d71b66.elb.us-east-2.amazonaws.com.",
+          "EvaluateTargetHealth": false
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: gambly-electric
+  namespace: gambly-dev
+  labels:
+    app: gambly-electric
+spec:
+  selector:
+    app: gambly-electric
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000
+  type: ClusterIP
