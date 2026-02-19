@@ -21,11 +21,19 @@ jobs:
 
       - name: Bash syntax check
         run: |
-          bash -n scripts/*.sh
+          bash -n \
+            scripts/create-dev-electric-route53.sh \
+            scripts/deploy-gambly-electric-dev.sh \
+            scripts/deploy-gambly-electric.sh \
+            scripts/test-electric-shape-sync.sh
 
       - name: Shellcheck
         run: |
-          shellcheck scripts/*.sh
+          shellcheck \
+            scripts/create-dev-electric-route53.sh \
+            scripts/deploy-gambly-electric-dev.sh \
+            scripts/deploy-gambly-electric.sh \
+            scripts/test-electric-shape-sync.sh
 
       - name: Validate Kubernetes manifests
         uses: azure/setup-kubectl@v4
