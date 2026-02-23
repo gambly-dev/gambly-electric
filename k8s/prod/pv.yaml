@@ -15,4 +15,4 @@ spec:
   storageClassName: ""
   csi:
     driver: efs.csi.aws.com
-    volumeHandle: fs-REPLACE_ME::fsap-REPLACE_ME
+    volumeHandle: fs-0ade713452d6b7f7b::fsap-0407f2e3b4e5698e6
