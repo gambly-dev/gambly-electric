@@ -34,11 +34,23 @@ spec:
                   key: ELECTRIC_SECRET
             - name: ELECTRIC_STORAGE_DIR
               value: /var/lib/electric/persistent
+            # Keep the durable log/state store on EFS, but move the hot ShapeDb
+            # onto local ephemeral storage to avoid EFS read contention.
+            - name: ELECTRIC_SHAPE_DB_STORAGE_DIR
+              value: /var/lib/electric/shape-db
             - name: ELECTRIC_SERVICE_NAME
               value: gambly-electric
+            - name: ELECTRIC_SHAPE_DB_EXCLUSIVE_MODE
+              value: "true"
+            - name: ELECTRIC_EXPERIMENTAL_MAX_SHAPES
+              value: "10000"
+            - name: ELECTRIC_SHAPE_DB_SYNCHRONOUS
+              value: NORMAL
           volumeMounts:
             - name: electric-storage
               mountPath: /var/lib/electric/persistent
+            - name: electric-shape-db
+              mountPath: /var/lib/electric/shape-db
           livenessProbe:
             httpGet:
               path: /v1/health
@@ -58,12 +70,14 @@ spec:
             failureThreshold: 3
           resources:
             requests:
-              cpu: 500m
-              memory: 1Gi
+              cpu: "1"
+              memory: 4Gi
             limits:
-              cpu: 500m
-              memory: 1Gi
+              cpu: "1"
+              memory: 4Gi
       volumes:
         - name: electric-storage
           persistentVolumeClaim:
             claimName: gambly-electric
+        - name: electric-shape-db
+          emptyDir: {}
