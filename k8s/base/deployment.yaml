@@ -24,26 +24,11 @@ spec:
           envFrom:
             - secretRef:
                 name: gambly-electric-env
-          env:
-            - name: ELECTRIC_STORAGE_DIR
-              value: /var/lib/electric/persistent
-            - name: ELECTRIC_SHAPE_DB_STORAGE_DIR
-              value: /var/lib/electric/shape-db
-            - name: ELECTRIC_SERVICE_NAME
-              value: gambly-electric
-            - name: ELECTRIC_SHAPE_DB_EXCLUSIVE_MODE
-              value: "true"
-            - name: ELECTRIC_EXPERIMENTAL_MAX_SHAPES
-              value: "10000"
-            - name: ELECTRIC_SHAPE_DB_SYNCHRONOUS
-              value: NORMAL
           volumeMounts:
             - name: electric-storage
               mountPath: /var/lib/electric/persistent
-              subPath: persistent
-            - name: electric-storage
+            - name: electric-shape-db
               mountPath: /var/lib/electric/shape-db
-              subPath: shape-db
           livenessProbe:
             httpGet:
               path: /v1/health
@@ -72,3 +57,5 @@ spec:
         - name: electric-storage
           persistentVolumeClaim:
             claimName: gambly-electric
+        - name: electric-shape-db
+          emptyDir: {}
