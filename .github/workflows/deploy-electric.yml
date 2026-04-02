@@ -45,9 +45,13 @@ jobs:
       - name: Check if deployment is configured
         id: gate
         run: |
-          if [ "${{ steps.env.outputs.environment }}" = "prod" ] && grep -q 'REPLACE_ME' "k8s/prod/pv.yaml"; then
+          VALUES_FILE="k8s/values-${{ steps.env.outputs.environment }}.env"
+          if [ ! -f "$VALUES_FILE" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
-            echo "reason=Prod EFS placeholders are still present in k8s/prod/pv.yaml" >> "$GITHUB_OUTPUT"
+            echo "reason=Values file ${VALUES_FILE} not found" >> "$GITHUB_OUTPUT"
+          elif grep -q 'REPLACE_ME' "$VALUES_FILE"; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "reason=Placeholders still present in ${VALUES_FILE}" >> "$GITHUB_OUTPUT"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
             echo "reason=Deployment configured" >> "$GITHUB_OUTPUT"
@@ -86,23 +90,35 @@ jobs:
         run: |
           aws eks update-kubeconfig --region "${{ env.AWS_REGION }}" --name "${{ env.EKS_CLUSTER }}"
 
-      - name: Apply Kubernetes manifests
+      - name: Render and apply Kubernetes manifests
         if: steps.gate.outputs.skip != 'true' && steps.creds.outputs.available == 'true'
         run: |
           NAMESPACE="${{ steps.env.outputs.namespace }}"
-          MANIFEST_DIR="k8s/${{ steps.env.outputs.environment }}"
 
+          # Load environment-specific values for template substitution
+          set -a
+          source "k8s/values-${{ steps.env.outputs.environment }}.env"
+          set +a
+
+          # Render templates into a temporary directory
+          RENDERED_DIR=$(mktemp -d)
+          for tpl in k8s/base/*.yaml; do
+            envsubst < "$tpl" > "${RENDERED_DIR}/$(basename "$tpl")"
+          done
+
+          # Create/update secret from the .env downloaded from S3
           kubectl create secret generic gambly-electric-env \
             --namespace "$NAMESPACE" \
             --from-env-file=.env \
             --dry-run=client -o yaml | kubectl apply -f -
 
-          kubectl apply -f "${MANIFEST_DIR}/csidriver-efs.yaml"
-          kubectl apply -f "${MANIFEST_DIR}/pv.yaml"
-          kubectl apply -f "${MANIFEST_DIR}/pvc.yaml"
-          kubectl apply -f "${MANIFEST_DIR}/deployment.yaml"
-          kubectl apply -f "${MANIFEST_DIR}/service.yaml"
-          kubectl apply -f "${MANIFEST_DIR}/ingress.yaml"
+          # Apply manifests in dependency order
+          kubectl apply -f "${RENDERED_DIR}/csidriver-efs.yaml"
+          kubectl apply -f "${RENDERED_DIR}/pv.yaml"
+          kubectl apply -f "${RENDERED_DIR}/pvc.yaml"
+          kubectl apply -f "${RENDERED_DIR}/deployment.yaml"
+          kubectl apply -f "${RENDERED_DIR}/service.yaml"
+          kubectl apply -f "${RENDERED_DIR}/ingress.yaml"
 
       - name: Verify rollout
         if: steps.gate.outputs.skip != 'true' && steps.creds.outputs.available == 'true'
