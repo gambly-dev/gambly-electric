@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: gambly-electric
-  namespace: gambly-dev
+  namespace: ${NAMESPACE}
   labels:
     app: gambly-electric
 spec:
@@ -21,17 +21,10 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 3000
+          envFrom:
+            - secretRef:
+                name: gambly-electric-env
           env:
-            - name: DATABASE_URL
-              valueFrom:
-                secretKeyRef:
-                  name: gambly-electric-env
-                  key: DATABASE_URL
-            - name: ELECTRIC_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: gambly-electric-env
-                  key: ELECTRIC_SECRET
             - name: ELECTRIC_STORAGE_DIR
               value: /var/lib/electric/persistent
             - name: ELECTRIC_SERVICE_NAME
